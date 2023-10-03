@@ -1,0 +1,13 @@
+>-
+  {% if is_state('input_select.ac_'~ ac_alarm ~'_sound','Radio') %}
+
+    {% if is_state('input_select.ac_'~ ac_alarm ~'_radio','Dance Wave - Retro Dance') %}{{ 'http://stream4.dancewave.online:8080/retrodance.flac.ogg' }}
+    {% endif %}
+  
+  {% elif is_state('input_select.ac_'~ ac_alarm ~'_sound','Digital') %}{{ 'http://192.168.0.30:8123/local/media/alarm_clock_sounds/Digital.mp3' }}
+  {% elif is_state('input_select.ac_'~ ac_alarm ~'_sound','Gentle') %}{{ 'http://192.168.0.30:8123/local/media/alarm_clock_sounds/Gentle.mp3' }}
+  {% elif is_state('input_select.ac_'~ ac_alarm ~'_sound','Loud') %}{{ 'http://192.168.0.30:8123/local/media/alarm_clock_sounds/Loud.mp3' }}
+  {% elif is_state('input_select.ac_'~ ac_alarm ~'_sound','Pager') %}{{ 'http://192.168.0.30:8123/local/media/alarm_clock_sounds/Pager.mp3' }}
+  {% elif is_state('input_select.ac_'~ ac_alarm ~'_sound','Rooster') %}{{ 'http://192.168.0.30:8123/local/media/alarm_clock_sounds/Rooster.mp3' }}
+
+  {% endif %}
