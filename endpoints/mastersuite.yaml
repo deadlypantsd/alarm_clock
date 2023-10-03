@@ -58,6 +58,7 @@ input_select:
     name: "[Alarm Clock] Alarm Sound"
     icon: mdi:file-music
     options:
+      - Radio
       - Digital
       - Gentle
       - Loud
