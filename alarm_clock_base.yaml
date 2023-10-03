@@ -1,0 +1,275 @@
+#######################################################################################################################
+## Template Sensors - Alarm Clock Off
+#######################################################################################################################
+template:
+  - sensor:
+      - name: ac_off
+        state: >
+          {% set helper=namespace(list=[]) %}{% for entity in (state_attr('media_player.ac_helper','entity_id')) %}{% set helper.list=helper.list+[entity|replace('media_player.vlc_','input_boolean.ac_')|replace('_kodi_mini','')] %}{%endfor%}
+          {% set turned_off=expand(helper.list, 'media_player.ac_helper')|map(attribute='entity_id') | map('replace', 'media_player.', 'input_boolean.') | list %}
+          {{ expand(turned_off) | selectattr('state', 'eq', 'off')|sort(attribute='last_updated', reverse=True)|map(attribute='entity_id')|first|default }}
+      - name: ac_snooze
+        state: >
+          {% set helper=namespace(list=[]) %}{% for entity in (state_attr('media_player.ac_helper','entity_id')) %}{% set helper.list=helper.list+[entity|replace('media_player.vlc_','input_boolean.ac_')|replace('_kodi_mini','_snooze')] %}{%endfor%}
+          {% set snoozed=expand(helper.list, 'media_player.ac_helper')|map(attribute='entity_id') | map('replace', 'media_player.', 'input_boolean.') | list %}
+          {{ expand(snoozed) | selectattr('state', 'eq', 'on')|sort(attribute='last_updated', reverse=True)|map(attribute='entity_id')|first|default }}
+
+script:
+  #######################################################################################################################
+  ## Script - Alarm Clock On
+  #######################################################################################################################
+  ac_on:
+    alias: "[Alarm Clock] Turn On"
+    icon: mdi:alarm-note
+    mode: parallel
+    sequence:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ states('input_boolean.ac_' ~ ac_alarm) == 'on' }}"
+            sequence:
+              - service: var.set
+                data:
+                  entity_id: "{{ 'var.ac_' ~ ac_alarm }}"
+                  value: "on"
+              - service: media_player.volume_set
+                data:
+                  volume_level: >-
+                    {{ states('input_number.ac_' ~ ac_alarm ~ '_volume')|int / 100|float }}
+                target:
+                  entity_id: "{{ ['media_player.vlc_' ~ ac_alarm ~ '_kodi_mini'] }}"
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: "{{ 'input_boolean.ac_' ~ ac_alarm ~ '_snooze' }}"
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ is_state('input_select.ac_' ~ ac_alarm ~ '_sound','Radio') }}"
+                    sequence:
+                      - service: media_player.play_media
+                        target:
+                          entity_id: >
+                            {{ ['media_player.vlc_' ~ ac_alarm ~ '_kodi_mini'] }}
+                        data:
+                          media_content_id: !include /config/include/template/ac_sound_template.yaml
+                          media_content_type: audio/music
+                      - stop: ""
+              - service: script.turn_on
+                target:
+                  entity_id: script.ac_volumeincrease
+                data:
+                  variables:
+                    ac_alarm: "{{ ac_alarm }}"
+              - repeat:
+                  sequence:
+                    - choose:
+                        - conditions:
+                            - condition: template
+                              value_template: " {{ states('input_boolean.ac_'~ ac_alarm ~'_snooze') == 'off' }}"
+                          sequence:
+                            - service: media_player.play_media
+                              target:
+                                entity_id: "{{ ['media_player.vlc_' ~ ac_alarm ~ '_kodi_mini'] }}"
+                              data:
+                                media_content_id: !include /config/include/template/ac_sound_template.yaml
+                                media_content_type: audio/music
+                            - wait_template: "{{ state_attr('media_player.vlc_'~ ac_alarm ~'_kodi_mini','media_duration')|int > 0 }}"
+                            - delay:
+                                seconds: "{{ state_attr('media_player.vlc_'~ ac_alarm ~'_kodi_mini','media_duration')|int }}"
+                  until:
+                    - condition: template
+                      value_template: "{{ states('input_boolean.ac_' ~ ac_alarm) == 'off' }}"
+
+  #######################################################################################################################
+  ## Script - Alarm Clock Off
+  #######################################################################################################################
+  ac_off:
+    alias: "[Alarm Clock] Turn Off"
+    icon: mdi:alarm-off
+    mode: single
+    sequence:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ states('media_player.vlc_' ~ ac_alarm ~'_kodi_mini') == 'playing' }}"
+            sequence:
+              - service: var.set
+                data:
+                  entity_id: "{{ 'var.ac_' ~ ac_alarm }}"
+                  value: "off"
+              - service: script.turn_off
+                data:
+                  variables:
+                    ac_alarm: >
+                      {{ac_alarm}}
+                target:
+                  entity_id: script.ac_volumeincrease
+              - service: script.turn_off
+                target:
+                  entity_id: script.ac_on
+              - service: media_player.media_stop
+                target:
+                  entity_id: "{{ 'media_player.vlc_' ~ ac_alarm ~ '_kodi_mini' }}"
+              ### automation increase volume turn off
+
+  #######################################################################################################################
+  ## Script - Auto Increase Volume
+  #######################################################################################################################
+  ac_volumeincrease:
+    alias: "[Alarm Clock] Increase Volume"
+    description: "Turn up alarm clock volume every 4 sec."
+    mode: parallel
+    sequence:
+      - service: media_player.volume_set
+        data:
+          volume_level: >-
+            {{ (states('input_number.ac_'~ ac_alarm ~'_volume')|int / 100)|float }}
+        target:
+          entity_id: >
+            {{ ['media_player.vlc_'~ ac_alarm ~'_kodi_mini'] }}
+      - condition: not
+        conditions:
+          - condition: template
+            value_template: >
+              {{ 'input_select.ac_'~ ac_alarm ~'_sound' == 'Radio'}}
+      - condition: template
+        value_template: >
+          {{ states('input_boolean.ac_'~ac_alarm~'_volume') == 'on'}}
+      - repeat:
+          sequence:
+            - delay:
+                seconds: 4
+            - service: media_player.volume_set
+              data:
+                volume_level: >
+                  {{ state_attr('media_player.vlc_'~ac_alarm~'_kodi_mini','volume_level')|float + 0.01 }}
+              target:
+                entity_id: >
+                  {{ ['media_player.vlc_'~ac_alarm~'_kodi_mini' ]}}
+          until:
+            - condition: template
+              value_template: >-
+                {{ state_attr('media_player.vlc_'~ac_alarm~'_kodi_mini','volume_level')|float > 0.4 }}
+
+automation:
+  #######################################################################################################################
+  ## Input Boolean - Alarm Clock Off
+  #######################################################################################################################
+  - id: ac_enabled
+    alias: "[Alarm Clock] Detect turn on/off from input_boolean"
+    description: Dectect input_boolean on/off for Alarm CLock entities
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: sensor.ac_off
+    action:
+      # - choose:
+      #     - conditions:
+      #         - condition: template
+      #           value_template: "{{ trigger.to_state.state == 'off' }}"
+      #       sequence:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: >-
+            {{ [trigger.to_state.state ~ '_snooze'] }}
+
+      - service: timer.cancel
+        target:
+          entity_id: >-
+            {{ ['timer.'~ trigger.to_state.state | replace('input_boolean.','') ~ '_snooze'] }}
+      - service: script.turn_on
+        target:
+          entity_id: script.ac_off
+        data:
+          variables:
+            ac_alarm: >
+              {{ trigger.to_state.state | replace('input_boolean.ac_','') }}
+
+  #######################################################################################################################
+  ## Input Boolean - Alarm Clock Snoozed
+  #######################################################################################################################
+  - id: ac_snoozed
+    alias: "[Alarm Clock] Detect snooze from input_boolean"
+    description: Dectect snooze for Alarm CLock entities
+    mode: restart
+    max_exceeded: silent
+    trigger:
+      - platform: state
+        entity_id: sensor.ac_snooze
+    action:
+      # - choose:
+      #     - conditions:
+      #         - condition: template
+      #           value_template: >
+      #             {{ trigger.to_state.state == 'on' }}
+      #       sequence:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ states('timer.' ~ trigger.to_state.state | replace('input_boolean.', '')) == 'active'}}
+            sequence:
+              stop: ""
+
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ states(trigger.to_state.state | replace('_snooze','')) == 'off' }}
+            sequence:
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: >
+                    {{ trigger.to_state.state }}
+          - conditions:
+              - condition: and
+                conditions:
+                  - condition: template
+                    value_template: >
+                      {{ states(trigger.to_state.state | replace('_snooze','')) == 'on' }}
+                  - condition: template
+                    value_template: >
+                      {{ states('media_player.vlc_'~(trigger.to_state.state|replace('input_boolean.ac_','')|replace('_snooze',''))~'_kodi_mini') == 'playing' }}
+            sequence:
+              - service: script.turn_on
+                target:
+                  entity_id: script.ac_off
+                data:
+                  variables:
+                    ac_alarm: >
+                      {{ trigger.to_state.state | replace('input_boolean.ac_','')|replace('_snooze','') }}
+              - service: timer.start
+                data:
+                  duration:
+                    minutes: >-
+                      {{ states(trigger.to_state.state | replace('input_boolean.','input_number.'))|int }}
+                target:
+                  entity_id: >
+                    {{ ['timer.'~ trigger.to_state.state | replace('input_boolean.','') ] }}
+        default:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: >
+                {{ trigger.to_state.state }}
+  #######################################################################################################################
+  ## Input Boolean - Alarm Clock Resume from Snooze
+  #######################################################################################################################
+  - id: ac_resume
+    alias: "[Alarm Clock] Resume from Snooze"
+    description: Resume from Snooze for Alarm CLock entities
+    mode: restart
+    max_exceeded: silent
+    trigger:
+      ## TODO: Dynamic entity_id entries
+      - platform: event
+        event_type: timer.finished
+    condition:
+      - condition: template
+        value_template: >-
+          {{ states('input_boolean' ~ trigger.event.data.entity_id | replace('timer','') | replace('_snooze','')) == 'on' }}
+    action:
+      - service: script.turn_on
+        data:
+          variables:
+            ac_alarm: "{{ trigger.event.data.entity_id | replace('timer.ac_','') | replace('_snooze','') }}"
+        target:
+          entity_id: script.ac_on

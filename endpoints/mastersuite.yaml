@@ -1,0 +1,71 @@
+#######################################################################################################################
+## Variable - Alarm Clock
+#######################################################################################################################
+var:
+  ac_mastersuite:
+    initial_value: "off"
+    attributes:
+      friendly_name: "[Alarm Clock] Alarm Status"
+    restore: true
+
+#######################################################################################################################
+## Input Boolean - Alarm Clock
+#######################################################################################################################
+input_boolean:
+  ac_mastersuite:
+    name: "[Alarm Clock] On/Off"
+    icon: mdi:power
+  ac_mastersuite_snooze:
+    name: "[Alarm Clock] Snooze"
+    icon: mdi:alarm-snooze
+  ac_mastersuite_volume:
+    name: "[Alarm Clock] Volume Increase"
+    icon: mdi:volume-high
+
+#######################################################################################################################
+## Timer - Alarm Clock
+#######################################################################################################################
+timer:
+  ac_mastersuite_snooze:
+    name: "[Alarm Clock] Snooze"
+    icon: mdi:sleep
+
+#######################################################################################################################
+## Input Number - Alarm Clock
+#######################################################################################################################
+input_number:
+  ac_mastersuite_volume:
+    name: "[Alarm Clock] Alarm Volume"
+    icon: mdi:none
+    min: 1
+    max: 100
+    step: 1
+    unit_of_measurement: "%"
+
+  ac_mastersuite_snooze:
+    name: "[Alarm Clock] Snooze Duration"
+    icon: mdi:timer-outline
+    min: 1
+    max: 15
+    step: 1
+    unit_of_measurement: "min"
+
+#######################################################################################################################
+## Input Select - Alarm Clock
+#######################################################################################################################
+input_select:
+  ac_mastersuite_sound:
+    name: "[Alarm Clock] Alarm Sound"
+    icon: mdi:file-music
+    options:
+      - Radio
+      - Digital
+      - Gentle
+      - Loud
+      - Pager
+      - Rooster
+
+  ac_mastersuite_radio:
+    name: "[Alarm Clock] Alarm Radio Station"
+    icon: mdi:radio-tower
+    options: !include /config/include/entities/radio_station_names.yaml
