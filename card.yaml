@@ -1,0 +1,82 @@
+      - type: grid
+        square: false
+        columns: 1
+        title: Master Suite
+        cards:
+          - type: custom:stack-in-card
+            mode: vertical
+            cards:
+              - type: custom:stack-in-card
+                mode: vertical
+                keep:
+                  - background
+                cards:
+                  - camera_view: auto
+                    type: picture-glance
+                    tap_action:
+                      action: none
+                    hold_action:
+                      action: none
+                    entity: var.ac_mastersuite
+                    state_image:
+                      'on': /local/images/cards/alarm_clock/alarm_clock_alarming.png
+                      'off': /local/images/cards/alarm_clock/alarm_clock.png
+                    card_mod:
+                      style: |
+                        .box div:nth-child(1) div:nth-child(1) {
+                          --ha-picture-icon-button-color: var(--primary-text-color);
+                        }
+                        ha-card .box .row .wrapper ha-icon-button {
+                          --mdc-icon-button-size: 60px !important;
+                        }
+                        ha-card {
+                          --mdc-icon-size: 50px;
+                        }
+                        ha-card .box {
+                          height: 60px;
+                        }
+                        ha-card .box .title {
+                          line-height: 60px;
+                        }
+                        ha-card .box .row div {
+                          width: 80px !important;
+                        }
+                    entities:
+                      - entity: script.ac_on
+                        icon: mdi:cog
+                        tap_action:
+                          action: fire-dom-event
+                          browser_mod:
+                            service: browser_mod.popup
+                            data:
+                              title: Alarm Clock Settings
+                              card_mod:
+                                style: |
+                                  #popup header
+                                  .:
+                              content:
+                                type: vertical-stack
+                                cards:
+                                  - type: entities
+                                    entities:
+                                      - entity: input_select.ac_mastersuite_sound
+                                      - type: conditional
+                                        conditions:
+                                          - entity: input_select.ac_mastersuite_sound
+                                            state: Radio
+                                        row:
+                                          entity: input_select.ac_mastersuite_radio
+                                      - entity: input_number.ac_mastersuite_volume
+                                      - entity: input_boolean.ac_mastersuite_volume
+                                      - entity: input_number.ac_mastersuite_snooze
+                      - entity: input_boolean.ac_mastersuite_snooze
+                      - entity: input_boolean.ac_mastersuite
+                  - type: conditional
+                    conditions:
+                      - entity: timer.ac_mastersuite_snooze
+                        state: active
+                    card:
+                      type: entities
+                      entities:
+                        - entity: timer.ac_mastersuite_snooze
+                          name: Snooze Time Remaining
