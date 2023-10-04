@@ -90,8 +90,13 @@ script:
     sequence:
       - choose:
           - conditions:
-              - condition: template
-                value_template: "{{ states('media_player.vlc_' ~ ac_alarm ~'_kodi_mini') == 'playing' }}"
+              - condition: and
+                conditions:
+                  - condition: template
+                    value_template: "{{ states('var.ac_' ~ ac_alarm) == 'on' }}"
+                  - condition: template
+                    value_template: "{{ states('media_player.vlc_' ~ ac_alarm ~'_kodi_mini') == 'playing' }}"
+
             sequence:
               - service: var.set
                 data:
@@ -163,11 +168,6 @@ automation:
       - platform: state
         entity_id: sensor.ac_off
     action:
-      # - choose:
-      #     - conditions:
-      #         - condition: template
-      #           value_template: "{{ trigger.to_state.state == 'off' }}"
-      #       sequence:
       - service: input_boolean.turn_off
         target:
           entity_id: >-
